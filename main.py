@@ -154,51 +154,9 @@ async def order_inprogress(
 
     data = json.loads(body)
 
-    # Логируем что реально приходит от Shopify
-    status = data.get("fulfillment_status") or ""
-    tags = data.get("tags") or ""
-    order_id_log = str(data.get("id", "?"))
-    note = data.get("note") or ""
-    note_attrs = data.get("note_attributes") or []
-    fulfillments = data.get("fulfillments") or []
-    fulfillment_statuses = [f.get("status") for f in fulfillments]
-    tracking_urls = [f.get("tracking_url") for f in fulfillments if f.get("tracking_url")]
-    fulfillment_orders = data.get("fulfillment_orders") or []
-    fo_statuses = [fo.get("status") for fo in fulfillment_orders]
-    print(f"[IN PROGRESS CHECK] order={order_id_log} fulfillment_status={repr(status)} tags={repr(tags)} note={repr(note)} fulfillment_statuses={fulfillment_statuses} fo_statuses={fo_statuses} tracking_urls={tracking_urls}")
-
-    # Проверяем fulfillment_orders (Shopify новый API) и fulfillments (старый)
-    is_in_progress = (
-        any(s in ("in_progress", "open") for s in fulfillment_statuses) or
-        any(s == "in_progress" for s in fo_statuses)
-    )
-
-    if not is_in_progress:
-        return {"status": "skipped", "reason": f"no in_progress fulfillment_order, fo_statuses={fo_statuses}, fulfillment_statuses={fulfillment_statuses}"}
-
-    order_id = str(data["id"])
-    email = data.get("email") or ""
-    customer = data.get("customer") or {}
-    first = customer.get("first_name") or ""
-    last = customer.get("last_name") or ""
-    customer_name = f"{first} {last}".strip() or "Покупатель"
-
-    print(f"[IN PROGRESS] #{order_id} | {email}")
-
-    try:
-        track_event(
-            event_name="Order In Progress",
-            email=email,
-            properties={
-                "order_id": order_id,
-                "customer_name": customer_name,
-            },
-        )
-        print(f"[IN PROGRESS] ✅ Событие отправлено → {email}")
-    except Exception as e:
-        print(f"[ERROR] Не удалось отправить in-progress событие: {e}")
-
-    return {"status": "ok", "order_id": order_id}
+    # Уведомление теперь отправляется автоматически через 24ч планировщиком
+    # Этот endpoint принимает вебхук от Shopify но ничего не делает
+    return {"status": "ok", "note": "handled by scheduler"}
 
 
 # ── Healthcheck ───────────────────────────────────────────────────────────────
