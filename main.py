@@ -154,9 +154,12 @@ async def order_inprogress(
 
     data = json.loads(body)
 
-    # Shopify шлёт orders/updated на любое обновление заказа
-    # Нас интересует только смена статуса на "in_progress"
+    # Логируем что реально приходит от Shopify
     status = data.get("fulfillment_status") or ""
+    tags = data.get("tags") or ""
+    order_id_log = str(data.get("id", "?"))
+    print(f"[IN PROGRESS CHECK] order={order_id_log} fulfillment_status={repr(status)} tags={repr(tags)}")
+
     if status != "in_progress":
         return {"status": "skipped", "reason": f"fulfillment_status={status}"}
 
