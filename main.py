@@ -158,10 +158,21 @@ async def order_inprogress(
     status = data.get("fulfillment_status") or ""
     tags = data.get("tags") or ""
     order_id_log = str(data.get("id", "?"))
-    print(f"[IN PROGRESS CHECK] order={order_id_log} fulfillment_status={repr(status)} tags={repr(tags)}")
+    note = data.get("note") or ""
+    note_attrs = data.get("note_attributes") or []
+    fulfillments = data.get("fulfillments") or []
+    fulfillment_statuses = [f.get("status") for f in fulfillments]
+    tracking_urls = [f.get("tracking_url") for f in fulfillments if f.get("tracking_url")]
+    print(f"[IN PROGRESS CHECK] order={order_id_log} fulfillment_status={repr(status)} tags={repr(tags)} note={repr(note)} note_attrs={note_attrs} fulfillment_statuses={fulfillment_statuses} tracking_urls={tracking_urls}")
 
-    if status != "in_progress":
-        return {"status": "skipped", "reason": f"fulfillment_status={status}"}
+    # Пока логируем всё — не фильтруем
+    # TODO: после анализа логов поставить правильное условие
+    # if status != "in_progress":
+    #     return {"status": "skipped", "reason": f"fulfillment_status={status}"}
+
+    # Временно: пропускаем только явно выполненные
+    if status == "fulfilled":
+        return {"status": "skipped", "reason": "already fulfilled"}
 
     order_id = str(data["id"])
     email = data.get("email") or ""
