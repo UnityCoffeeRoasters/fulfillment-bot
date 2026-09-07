@@ -10,15 +10,21 @@ def init_db():
     with get_conn() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS orders (
-                order_id      TEXT PRIMARY KEY,
-                email         TEXT NOT NULL,
-                customer_name TEXT,
-                created_at    TEXT NOT NULL,
-                deadline      TEXT NOT NULL,
-                fulfilled_at  TEXT,
-                late_notified INTEGER DEFAULT 0
+                order_id             TEXT PRIMARY KEY,
+                email                TEXT NOT NULL,
+                customer_name        TEXT,
+                created_at           TEXT NOT NULL,
+                deadline             TEXT NOT NULL,
+                fulfilled_at         TEXT,
+                late_notified        INTEGER DEFAULT 0,
+                inprogress_notified  INTEGER DEFAULT 0
             )
         """)
+        # Миграция для существующих БД без колонки
+        try:
+            conn.execute("ALTER TABLE orders ADD COLUMN inprogress_notified INTEGER DEFAULT 0")
+        except Exception:
+            pass  # Колонка уже есть
     print("[DB] Таблица orders готова")
 
 
@@ -101,5 +107,33 @@ def mark_late_notified(order_id: str):
     with get_conn() as conn:
         conn.execute(
             "UPDATE orders SET late_notified = 1 WHERE order_id = ?",
+            (order_id,),
+        )
+
+
+def get_inprogress_pending_orders(now: datetime) -> list[dict]:
+    """
+    Заказы которым 24+ часа, ещё не выполнены и не получили уведомление In Progress.
+    """
+    from datetime import timedelta
+    cutoff = (now - timedelta(hours=24)).isoformat()
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM orders
+            WHERE fulfilled_at IS NULL
+              AND inprogress_notified = 0
+              AND created_at <= ?
+            """,
+            (cutoff,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def mark_inprogress_notified(order_id: str):
+    """Помечает что уведомление In Progress отправлено."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE orders SET inprogress_notified = 1 WHERE order_id = ?",
             (order_id,),
         )
