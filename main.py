@@ -165,10 +165,14 @@ async def order_inprogress(
     tracking_urls = [f.get("tracking_url") for f in fulfillments if f.get("tracking_url")]
     print(f"[IN PROGRESS CHECK] order={order_id_log} fulfillment_status={repr(status)} tags={repr(tags)} note={repr(note)} note_attrs={note_attrs} fulfillment_statuses={fulfillment_statuses} tracking_urls={tracking_urls}")
 
-    # Track123 не пишет 'in_progress' в fulfillment_status
-    # Ждём решения: теги или автоматически через 24ч
-    # Пока отключаем, чтобы не слать ложные письма
-    return {"status": "paused", "reason": "pending trigger strategy"}
+    # Проверяем статус отдельных fulfillment объектов (не order.fulfillment_status)
+    is_in_progress = any(
+        f.get("status") in ("in_progress", "open")
+        for f in fulfillments
+    )
+
+    if not is_in_progress:
+        return {"status": "skipped", "reason": f"no in_progress fulfillment, statuses={fulfillment_statuses}"}
 
     order_id = str(data["id"])
     email = data.get("email") or ""
