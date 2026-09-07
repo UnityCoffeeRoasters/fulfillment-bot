@@ -77,7 +77,7 @@ async def order_created(
     created_at = parse_dt(data["created_at"])
 
     # Дедлайн — 3 рабочих дня
-    deadline = add_business_days(created_at, 3)
+    deadline = add_business_days(created_at, 2)
 
     save_order(order_id, email, customer_name, created_at, deadline)
 
