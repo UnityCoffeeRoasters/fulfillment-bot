@@ -140,6 +140,51 @@ async def order_fulfilled(
     }
 
 
+# ── Вебхук: заказ в продакшене ───────────────────────────────────────────────
+
+@app.post("/webhook/order-inprogress")
+async def order_inprogress(
+    request: Request,
+    x_shopify_hmac_sha256: str = Header(default=""),
+):
+    body = await request.body()
+
+    if not verify_shopify_signature(body, x_shopify_hmac_sha256):
+        raise HTTPException(status_code=401, detail="Неверная подпись Shopify")
+
+    data = json.loads(body)
+
+    # Shopify шлёт orders/updated на любое обновление заказа
+    # Нас интересует только смена статуса на "in_progress"
+    status = data.get("fulfillment_status") or ""
+    if status != "in_progress":
+        return {"status": "skipped", "reason": f"fulfillment_status={status}"}
+
+    order_id = str(data["id"])
+    email = data.get("email") or ""
+    customer = data.get("customer") or {}
+    first = customer.get("first_name") or ""
+    last = customer.get("last_name") or ""
+    customer_name = f"{first} {last}".strip() or "Покупатель"
+
+    print(f"[IN PROGRESS] #{order_id} | {email}")
+
+    try:
+        track_event(
+            event_name="Order In Progress",
+            email=email,
+            properties={
+                "order_id": order_id,
+                "customer_name": customer_name,
+            },
+        )
+        print(f"[IN PROGRESS] ✅ Событие отправлено → {email}")
+    except Exception as e:
+        print(f"[ERROR] Не удалось отправить in-progress событие: {e}")
+
+    return {"status": "ok", "order_id": order_id}
+
+
 # ── Healthcheck ───────────────────────────────────────────────────────────────
 
 @app.get("/health")
