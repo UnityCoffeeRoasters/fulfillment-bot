@@ -74,9 +74,15 @@ async def order_created(
     last = customer.get("last_name") or ""
     customer_name = f"{first} {last}".strip() or "Покупатель"
 
+        # Пропускаем заказы по подписке
+    tags = data.get("tags") or ""
+    if "Subscription" in tags:
+        print(f"[SKIP SUBSCRIPTION] #{order_id} | теги: {tags}")
+        return {"status": "skipped", "reason": "subscription_order"}
+
     created_at = parse_dt(data["created_at"])
 
-    # Дедлайн — 3 рабочих дня
+    # Дедлайн — 2 рабочих дня
     deadline = add_business_days(created_at, 2)
 
     save_order(order_id, email, customer_name, created_at, deadline)
